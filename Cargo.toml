@@ -1,6 +1,24 @@
 [package]
 name = "keychains_rs"
 version = "0.1.0"
+authors = ["Prateek Banerjee"]
 edition = "2024"
+categories = ["cryptography"]
+keywords = ["cryptography"]
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
+aes = "0.8.4"
+ctr = "0.9.2"
+hkdf = "0.12.4"
+digest = "0.10.7"
+sha2 = "0.10.9"
+sha3 = "0.10.8"
+ascon = "0.4.0"
+rand = "0.8.5"
+rand_core = "=0.9.3"
+zeroize = "1.8.1"
+thiserror = "2.0.16"
+rusqlite = "0.37.0"
