@@ -6,6 +6,8 @@ use crate::crypto_primitives::{
     },
 };
 
+use super::{InitialState, NewState, RandomOutput};
+
 use sha2::{Digest, Sha256, Sha512};
 use sha3::{Sha3_256, Sha3_512};
 
@@ -36,38 +38,36 @@ impl HkdfKeyChain {
     }
 
     pub fn key_chain_instantiate(
-        self,
+        &self,
         initial_skm: &[u8],
         extractor_salt: Option<Vec<u8>>,
         info_param: Option<Vec<u8>>,
-    ) -> Result<Vec<u8>, HkdfError> {
+    ) -> Result<InitialState, HkdfError> {
         let pseudo_random_key: Vec<u8> = match extractor_salt {
-            Some(salt) =>
-                self.hkdf_obj.hkdf_extract(Some(salt), initial_skm)?,
-            None => {
-                self.hkdf_obj.hkdf_extract(None, initial_skm)?
-            }
+            Some(salt) => self.hkdf_obj.hkdf_extract(Some(salt), initial_skm)?,
+            None => self.hkdf_obj.hkdf_extract(None, initial_skm)?,
         };
 
         let initial_state: Vec<u8> = match info_param {
-            Some(info) => 
-                    self.hkdf_obj
-                        .hkdf_expand(&pseudo_random_key, Some(info), self.state_length)?,
-            None => 
-                    self.hkdf_obj
-                        .hkdf_expand(&pseudo_random_key, None, self.state_length)?
+            Some(info) => {
+                self.hkdf_obj
+                    .hkdf_expand(&pseudo_random_key, Some(info), self.state_length)?
+            }
+            None => self
+                .hkdf_obj
+                .hkdf_expand(&pseudo_random_key, None, self.state_length)?,
         };
 
         Ok(initial_state)
     }
 
     pub fn key_chain_update(
-        self,
+        &self,
         arbitrary_input_param: &[u8],
         keychain_state: &[u8],
         extractor_salt: Option<Vec<u8>>,
         info_param: Option<Vec<u8>>,
-    ) -> Result<(Vec<u8>, Vec<u8>), HkdfError> {
+    ) -> Result<(NewState, RandomOutput), HkdfError> {
         let source_key_material: Vec<u8> = [arbitrary_input_param, keychain_state].concat();
 
         let pseudo_random_key = match extractor_salt {
@@ -85,13 +85,14 @@ impl HkdfKeyChain {
 
         match result {
             Ok(total_output) => {
-                let (new_state_of_key_chain, random_output) = total_output.split_at(self.state_length);
+                let (new_state_of_key_chain, random_output) =
+                    total_output.split_at(self.state_length);
 
                 if self.store_persistently {
-                    todo!(); // Still needs implementation
+                    todo!(); // TODO: Still needs implementation
                 }
                 Ok((new_state_of_key_chain.to_vec(), random_output.to_vec()))
-            },
+            }
             Err(err) => Err(err),
         }
     }

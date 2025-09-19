@@ -1,4 +1,5 @@
-// [1] Krawczyk, Hugo. "Cryptographic extraction and key derivation: The HKDF scheme." Annual Cryptology Conference. Berlin, Heidelberg: Springer Berlin Heidelberg, 2010.
+// [1] Krawczyk, Hugo. "Cryptographic extraction and key derivation: The HKDF scheme."
+// Annual Cryptology Conference. Berlin, Heidelberg: Springer Berlin Heidelberg, 2010.
 
 use super::errors::HkdfError;
 use hkdf::{Hkdf, HkdfExtract};
@@ -11,6 +12,37 @@ pub enum HashFunc {
     SHA512,
     SHA3_256,
     SHA3_512,
+}
+
+impl HashFunc {
+    pub fn output_size(&self) -> usize {
+        match self {
+            Self::SHA256 => Sha256::output_size(),
+            Self::SHA512 => Sha512::output_size(),
+            Self::SHA3_256 => Sha3_256::output_size(),
+            Self::SHA3_512 => Sha3_512::output_size(),
+        }
+    }
+}
+
+macro_rules! hkdf_extract {
+    ($hash_algo:ty, $salt:expr, $source_key_material:expr) => {{
+        let mut hkdf_inst = HkdfExtract::<$hash_algo>::new(Some(&$salt));
+        hkdf_inst.input_ikm($source_key_material);
+        let (pseudo_random_key, _) = hkdf_inst.finalize();
+        pseudo_random_key.to_vec()
+    }};
+}
+
+macro_rules! hkdf_expand {
+    ($hash_algo:ty, $pseudo_random_key:expr, $info_param:expr, $total_output:expr) => {{
+        let hkdf_inst =
+            Hkdf::<$hash_algo>::from_prk($pseudo_random_key).expect("Invalid (length of) PRK.");
+        hkdf_inst
+            .expand(&$info_param, &mut $total_output)
+            .expect("Expansion Failed");
+        $total_output
+    }};
 }
 
 #[derive(Clone, Copy)]
@@ -38,59 +70,14 @@ impl HkdfWrap {
         extractor_salt: Option<Vec<u8>>,
         source_key_material: &[u8],
     ) -> Result<Vec<u8>, HkdfError> {
+        let digest_size: usize = self.hash_func.output_size();
+        let salt: Vec<u8> = self.check_and_get_salt(extractor_salt, digest_size)?;
+
         match self.hash_func {
-            HashFunc::SHA256 => {
-                let digest_size: usize = Sha256::output_size();
-                match self.check_and_get_salt(extractor_salt, digest_size) {
-                    Ok(salt) => {
-                        let mut hkdf_inst = HkdfExtract::<Sha256>::new(Some(&salt));
-
-                        hkdf_inst.input_ikm(source_key_material);
-                        let (pseudo_random_key, _) = hkdf_inst.finalize();
-                        Ok(pseudo_random_key.to_vec())
-                    }
-                    Err(err) => Err(err),
-                }
-            }
-            HashFunc::SHA512 => {
-                let digest_size: usize = Sha512::output_size();
-                match self.check_and_get_salt(extractor_salt, digest_size) {
-                    Ok(salt) => {
-                        let mut hkdf_inst = HkdfExtract::<Sha512>::new(Some(&salt));
-
-                        hkdf_inst.input_ikm(source_key_material);
-                        let (pseudo_random_key, _) = hkdf_inst.finalize();
-                        Ok(pseudo_random_key.to_vec())
-                    }
-                    Err(err) => Err(err),
-                }
-            }
-            HashFunc::SHA3_256 => {
-                let digest_size: usize = Sha3_256::output_size();
-                match self.check_and_get_salt(extractor_salt, digest_size) {
-                    Ok(salt) => {
-                        let mut hkdf_inst = HkdfExtract::<Sha3_256>::new(Some(&salt));
-
-                        hkdf_inst.input_ikm(source_key_material);
-                        let (pseudo_random_key, _) = hkdf_inst.finalize();
-                        Ok(pseudo_random_key.to_vec())
-                    }
-                    Err(err) => Err(err),
-                }
-            }
-            HashFunc::SHA3_512 => {
-                let digest_size: usize = Sha3_512::output_size();
-                match self.check_and_get_salt(extractor_salt, digest_size) {
-                    Ok(salt) => {
-                        let mut hkdf_inst = HkdfExtract::<Sha3_512>::new(Some(&salt));
-
-                        hkdf_inst.input_ikm(source_key_material);
-                        let (pseudo_random_key, _) = hkdf_inst.finalize();
-                        Ok(pseudo_random_key.to_vec())
-                    }
-                    Err(err) => Err(err),
-                }
-            }
+            HashFunc::SHA256 => Ok(hkdf_extract!(Sha256, salt, source_key_material)),
+            HashFunc::SHA512 => Ok(hkdf_extract!(Sha512, salt, source_key_material)),
+            HashFunc::SHA3_256 => Ok(hkdf_extract!(Sha3_256, salt, source_key_material)),
+            HashFunc::SHA3_512 => Ok(hkdf_extract!(Sha3_512, salt, source_key_material)),
         }
     }
 
@@ -100,68 +87,28 @@ impl HkdfWrap {
         info_param: Option<Vec<u8>>,
         desired_output_length: usize,
     ) -> Result<Vec<u8>, HkdfError> {
+        let digest_size: usize = self.hash_func.output_size();
         let mut total_output: Vec<u8> = vec![0u8; desired_output_length];
-        match self.hash_func {
-            HashFunc::SHA256 => {
-                let digest_size: usize = Sha256::output_size();
-                match self.is_output_length_okay(desired_output_length, digest_size) {
-                    Ok(_) => {
-                        let hkdf_inst = Hkdf::<Sha256>::from_prk(pseudo_random_key)
-                            .expect("Invalid (length of) PRK.");
-                        hkdf_inst
-                            .expand(&info_param.unwrap_or(b"".to_vec()), &mut total_output)
-                            .expect("Expansion Failed");
+        let info: Vec<u8> = info_param.unwrap_or(b"".to_vec());
 
-                        Ok(total_output)
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
-            HashFunc::SHA512 => {
-                let digest_size: usize = Sha512::output_size();
-                match self.is_output_length_okay(desired_output_length, digest_size) {
-                    Ok(_) => {
-                        let hkdf_inst = Hkdf::<Sha512>::from_prk(pseudo_random_key)
-                            .expect("Invalid (length of) PRK.");
-                        hkdf_inst
-                            .expand(&info_param.unwrap_or(b"".to_vec()), &mut total_output)
-                            .expect("Expansion Failed");
-
-                        Ok(total_output)
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
-            HashFunc::SHA3_256 => {
-                let digest_size: usize = Sha3_256::output_size();
-                match self.is_output_length_okay(desired_output_length, digest_size) {
-                    Ok(_) => {
-                        let hkdf_inst = Hkdf::<Sha3_256>::from_prk(pseudo_random_key)
-                            .expect("Invalid (length of) PRK.");
-                        hkdf_inst
-                            .expand(&info_param.unwrap_or(b"".to_vec()), &mut total_output)
-                            .expect("Expansion Failed");
-
-                        Ok(total_output)
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
-            HashFunc::SHA3_512 => {
-                let digest_size: usize = Sha3_512::output_size();
-                match self.is_output_length_okay(desired_output_length, digest_size) {
-                    Ok(_) => {
-                        let hkdf_inst = Hkdf::<Sha3_512>::from_prk(pseudo_random_key)
-                            .expect("Invalid (length of) PRK.");
-                        hkdf_inst
-                            .expand(&info_param.unwrap_or(b"".to_vec()), &mut total_output)
-                            .expect("Expansion Failed");
-
-                        Ok(total_output)
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
+        match self.is_output_length_okay(desired_output_length, digest_size) {
+            Ok(_) => match self.hash_func {
+                HashFunc::SHA256 => Ok(hkdf_expand!(Sha256, pseudo_random_key, info, total_output)),
+                HashFunc::SHA512 => Ok(hkdf_expand!(Sha512, pseudo_random_key, info, total_output)),
+                HashFunc::SHA3_256 => Ok(hkdf_expand!(
+                    Sha3_256,
+                    pseudo_random_key,
+                    info,
+                    total_output
+                )),
+                HashFunc::SHA3_512 => Ok(hkdf_expand!(
+                    Sha3_512,
+                    pseudo_random_key,
+                    info,
+                    total_output
+                )),
+            },
+            Err(err) => return Err(err),
         }
     }
 
@@ -175,7 +122,7 @@ impl HkdfWrap {
             Some(val) => {
                 if val.len() > digest_size {
                     return Err(HkdfError::InvalidSaltLength(format!(
-                        "Length of provided salt: {} bytes is more than the limit {} bytes for the hash function {:?}",
+                        "{} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
                         val.len(),
                         digest_size,
                         self.hash_func
@@ -198,8 +145,9 @@ impl HkdfWrap {
         digest_size: usize,
     ) -> Result<(), HkdfError> {
         if desired_output_length > (255 * digest_size) {
-            return Err(HkdfError::InvalidOutputLength(format!(
-                "Cannot expand more than the limit: {} bytes for the hash function {:?}",
+            return Err(HkdfError::ExcessiveTotalOutputLength(format!(
+                "{} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
+                desired_output_length,
                 (255 * digest_size),
                 self.hash_func
             )));
@@ -272,7 +220,10 @@ mod tests {
         let prk = hkdf.hkdf_extract(None, &ikm).unwrap();
         let result = hkdf.hkdf_expand(&prk, None, 255 * 32 + 1); // Just over the allowed limit
 
-        assert!(matches!(result, Err(HkdfError::InvalidOutputLength(_))));
+        assert!(matches!(
+            result,
+            Err(HkdfError::ExcessiveTotalOutputLength(_))
+        ));
     }
 
     #[test]

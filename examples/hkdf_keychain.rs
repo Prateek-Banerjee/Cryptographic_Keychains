@@ -20,10 +20,17 @@ fn main() {
     OsRng::fill_bytes(&mut OsRng, &mut input_param_1);
 
     let (new_state_1, output_key_1) = hkdf_kc_obj
-        .key_chain_update(&input_param_1, &kc_init_state, None, Some(kcu_info_1.to_vec()))
+        .key_chain_update(
+            &input_param_1,
+            &kc_init_state,
+            None,
+            Some(kcu_info_1.to_vec()),
+        )
         .unwrap();
 
     assert_eq!(output_key_1.len(), output_length);
+
+    println!("First Key in the key chain{:?}", output_key_1);
 
     let kcu_salt_1: [u8; 19] = *b"I use some kcu salt";
 
@@ -31,8 +38,15 @@ fn main() {
     OsRng::fill_bytes(&mut OsRng, &mut input_param_2);
 
     let (_new_state_2, output_key_2) = hkdf_kc_obj
-        .key_chain_update(&input_param_2, &new_state_1, Some(kcu_salt_1.to_vec()), None)
+        .key_chain_update(
+            &input_param_2,
+            &new_state_1,
+            Some(kcu_salt_1.to_vec()),
+            None,
+        )
         .unwrap();
 
     assert_eq!(output_key_2.len(), output_length);
+
+    println!("Second Key in the key chain{:?}", output_key_2);
 }
