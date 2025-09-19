@@ -1,26 +1,26 @@
 // [1] Krawczyk, Hugo. "Cryptographic extraction and key derivation: The HKDF scheme."
 // Annual Cryptology Conference. Berlin, Heidelberg: Springer Berlin Heidelberg, 2010.
 
-use super::errors::HkdfError;
+use super::errors::HkdfError::{self, *};
 use hkdf::{Hkdf, HkdfExtract};
 use sha2::{Sha256, Sha512, digest::Digest};
 use sha3::{Sha3_256, Sha3_512};
 
 #[derive(Clone, Copy, Debug)]
 pub enum HashFunc {
-    SHA256,
-    SHA512,
-    SHA3_256,
-    SHA3_512,
+    Sha256,
+    Sha512,
+    Sha3_256,
+    Sha3_512,
 }
 
 impl HashFunc {
     pub fn output_size(&self) -> usize {
         match self {
-            Self::SHA256 => Sha256::output_size(),
-            Self::SHA512 => Sha512::output_size(),
-            Self::SHA3_256 => Sha3_256::output_size(),
-            Self::SHA3_512 => Sha3_512::output_size(),
+            Self::Sha256 => Sha256::output_size(),
+            Self::Sha512 => Sha512::output_size(),
+            Self::Sha3_256 => Sha3_256::output_size(),
+            Self::Sha3_512 => Sha3_512::output_size(),
         }
     }
 }
@@ -53,7 +53,7 @@ pub struct HkdfWrap {
 impl Default for HkdfWrap {
     fn default() -> Self {
         Self {
-            hash_func: HashFunc::SHA256,
+            hash_func: HashFunc::Sha256,
         }
     }
 }
@@ -74,10 +74,10 @@ impl HkdfWrap {
         let salt: Vec<u8> = self.check_and_get_salt(extractor_salt, digest_size)?;
 
         match self.hash_func {
-            HashFunc::SHA256 => Ok(hkdf_extract!(Sha256, salt, source_key_material)),
-            HashFunc::SHA512 => Ok(hkdf_extract!(Sha512, salt, source_key_material)),
-            HashFunc::SHA3_256 => Ok(hkdf_extract!(Sha3_256, salt, source_key_material)),
-            HashFunc::SHA3_512 => Ok(hkdf_extract!(Sha3_512, salt, source_key_material)),
+            HashFunc::Sha256 => Ok(hkdf_extract!(Sha256, salt, source_key_material)),
+            HashFunc::Sha512 => Ok(hkdf_extract!(Sha512, salt, source_key_material)),
+            HashFunc::Sha3_256 => Ok(hkdf_extract!(Sha3_256, salt, source_key_material)),
+            HashFunc::Sha3_512 => Ok(hkdf_extract!(Sha3_512, salt, source_key_material)),
         }
     }
 
@@ -93,15 +93,15 @@ impl HkdfWrap {
 
         match self.is_output_length_okay(desired_output_length, digest_size) {
             Ok(_) => match self.hash_func {
-                HashFunc::SHA256 => Ok(hkdf_expand!(Sha256, pseudo_random_key, info, total_output)),
-                HashFunc::SHA512 => Ok(hkdf_expand!(Sha512, pseudo_random_key, info, total_output)),
-                HashFunc::SHA3_256 => Ok(hkdf_expand!(
+                HashFunc::Sha256 => Ok(hkdf_expand!(Sha256, pseudo_random_key, info, total_output)),
+                HashFunc::Sha512 => Ok(hkdf_expand!(Sha512, pseudo_random_key, info, total_output)),
+                HashFunc::Sha3_256 => Ok(hkdf_expand!(
                     Sha3_256,
                     pseudo_random_key,
                     info,
                     total_output
                 )),
-                HashFunc::SHA3_512 => Ok(hkdf_expand!(
+                HashFunc::Sha3_512 => Ok(hkdf_expand!(
                     Sha3_512,
                     pseudo_random_key,
                     info,
@@ -121,7 +121,7 @@ impl HkdfWrap {
         let salt: Vec<u8> = match extractor_salt {
             Some(val) => {
                 if val.len() > digest_size {
-                    return Err(HkdfError::InvalidSaltLength(format!(
+                    return Err(InvalidSaltLength(format!(
                         "{} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
                         val.len(),
                         digest_size,
@@ -145,7 +145,7 @@ impl HkdfWrap {
         digest_size: usize,
     ) -> Result<(), HkdfError> {
         if desired_output_length > (255 * digest_size) {
-            return Err(HkdfError::ExcessiveTotalOutputLength(format!(
+            return Err(ExcessiveTotalOutputLength(format!(
                 "{} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
                 desired_output_length,
                 (255 * digest_size),
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_extract_sha256_with_valid_salt() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA256);
+        let hkdf = HkdfWrap::new(HashFunc::Sha256);
         let salt = Some(sample_salt(32)); // SHA256 output size
         let ikm = sample_input();
 
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_extract_sha512_with_default_salt() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA512);
+        let hkdf = HkdfWrap::new(HashFunc::Sha512);
         let ikm = sample_input();
 
         let result = hkdf.hkdf_extract(None, &ikm);
@@ -192,17 +192,17 @@ mod tests {
 
     #[test]
     fn test_extract_fails_with_invalid_salt_length() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA256);
+        let hkdf = HkdfWrap::new(HashFunc::Sha256);
         let ikm = sample_input();
         let long_salt = Some(sample_salt(64)); // longer than SHA256 output
 
         let result = hkdf.hkdf_extract(long_salt, &ikm);
-        assert!(matches!(result, Err(HkdfError::InvalidSaltLength(_))));
+        assert!(matches!(result, Err(InvalidSaltLength(_))));
     }
 
     #[test]
     fn test_expand_sha256_success() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA256);
+        let hkdf = HkdfWrap::new(HashFunc::Sha256);
         let ikm = sample_input();
 
         let prk = hkdf.hkdf_extract(None, &ikm).unwrap();
@@ -214,21 +214,18 @@ mod tests {
 
     #[test]
     fn test_expand_fails_with_excessive_output_length() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA3_256);
+        let hkdf = HkdfWrap::new(HashFunc::Sha3_256);
         let ikm = sample_input();
 
         let prk = hkdf.hkdf_extract(None, &ikm).unwrap();
         let result = hkdf.hkdf_expand(&prk, None, 255 * 32 + 1); // Just over the allowed limit
 
-        assert!(matches!(
-            result,
-            Err(HkdfError::ExcessiveTotalOutputLength(_))
-        ));
+        assert!(matches!(result, Err(ExcessiveTotalOutputLength(_))));
     }
 
     #[test]
     fn test_expand_with_info() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA3_512);
+        let hkdf = HkdfWrap::new(HashFunc::Sha3_512);
         let ikm = sample_input();
         let prk = hkdf.hkdf_extract(None, &ikm).unwrap();
 
@@ -241,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_extract_and_expand_sha3_256() {
-        let hkdf = HkdfWrap::new(HashFunc::SHA3_256);
+        let hkdf = HkdfWrap::new(HashFunc::Sha3_256);
         let ikm = sample_input();
         let salt = Some(sample_salt(32));
 

@@ -1,10 +1,7 @@
 // [1] Barak, Boaz, and Shai Halevi. "A model and architecture for pseudo-random generation with applications to/dev/random."
 // Proceedings of the 12th ACM conference on Computer and communications security. 2005. https://eprint.iacr.org/2005/029.pdf
 
-use super::{
-    errors::PrgError::{self, InvalidInputKeyLength, UnexpectedOutputType},
-    utils::xor_bytes,
-};
+use super::errors::PrgError::{self, *};
 use aes::{Aes128, Aes192, Aes256};
 use ctr::Ctr128LE;
 use ctr::cipher::{KeyIvInit, StreamCipher};
@@ -49,7 +46,7 @@ impl Prg {
         current_prg_state: &[u8],
         extracted_parameter: &[u8],
     ) -> Result<Vec<u8>, PrgError> {
-        let xored_value: Vec<u8> = match xor_bytes(current_prg_state, extracted_parameter) {
+        let xored_value: Vec<u8> = match self.xor_bytes(current_prg_state, extracted_parameter) {
             Ok(output) => output,
             Err(err) => return Err(err),
         };
@@ -143,6 +140,21 @@ impl Prg {
                 ))
             }
         }
+    }
+    fn xor_bytes(self, param_1: &[u8], param_2: &[u8]) -> Result<Vec<u8>, PrgError> {
+        if param_1.len() != param_2.len() {
+            return Err(XORLengthMismatch(format!(
+                "Cannot XOR bytes of unequal length."
+            )));
+        }
+
+        let output: Vec<u8> = param_1
+            .iter()
+            .zip(param_2.iter())
+            .map(|(a, b)| a ^ b)
+            .collect();
+
+        Ok(output)
     }
 }
 

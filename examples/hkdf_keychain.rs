@@ -3,7 +3,7 @@ use rand::{RngCore, rngs::OsRng};
 
 fn main() {
     let output_length: usize = 40;
-    let hkdf_kc_obj: HkdfKeyChain = HkdfKeyChain::new(SHA256, Some(output_length), None);
+    let hkdf_kc_obj: HkdfKeyChain = HkdfKeyChain::new(Sha256, Some(output_length), None);
 
     let mut initial_skm: [u8; 32] = [0u8; 32];
     OsRng::fill_bytes(&mut OsRng, &mut initial_skm);

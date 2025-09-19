@@ -1,15 +1,9 @@
 use crate::crypto_primitives::{
     errors::HkdfError,
-    hkdf_wrap_ops::{
-        HashFunc::{self, *},
-        HkdfWrap,
-    },
+    hkdf_wrap_ops::{HashFunc, HkdfWrap},
 };
 
 use super::{InitialState, NewState, RandomOutput};
-
-use sha2::{Digest, Sha256, Sha512};
-use sha3::{Sha3_256, Sha3_512};
 
 #[derive(Clone, Copy)]
 pub struct HkdfKeyChain {
@@ -27,12 +21,12 @@ impl HkdfKeyChain {
     ) -> Self {
         let hkdf_obj: HkdfWrap = HkdfWrap::new(hash_func);
 
-        let (output_len, state_len) = Self::get_output_size(hash_func, output_length);
+        let (output_size, state_size) = Self::get_total_output_size(hash_func, output_length);
 
         Self {
             hkdf_obj: hkdf_obj,
-            output_length: output_len,
-            state_length: state_len,
+            output_length: output_size,
+            state_length: state_size,
             store_persistently: store_persistently.unwrap_or(false),
         }
     }
@@ -97,23 +91,8 @@ impl HkdfKeyChain {
         }
     }
 
-    fn get_output_size(hash_func: HashFunc, output_length: Option<usize>) -> (usize, usize) {
-        let state_len: usize;
-
-        match hash_func {
-            SHA256 => {
-                state_len = Sha256::output_size();
-            }
-            SHA512 => {
-                state_len = Sha512::output_size();
-            }
-            SHA3_256 => {
-                state_len = Sha3_256::output_size();
-            }
-            SHA3_512 => {
-                state_len = Sha3_512::output_size();
-            }
-        }
+    fn get_total_output_size(hash_func: HashFunc, output_length: Option<usize>) -> (usize, usize) {
+        let state_len: usize = hash_func.output_size();
 
         match output_length {
             Some(output_len) => (output_len, state_len),
