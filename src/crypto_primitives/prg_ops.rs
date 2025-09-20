@@ -1,7 +1,7 @@
 // [1] Barak, Boaz, and Shai Halevi. "A model and architecture for pseudo-random generation with applications to/dev/random."
 // Proceedings of the 12th ACM conference on Computer and communications security. 2005. https://eprint.iacr.org/2005/029.pdf
 
-use super::errors::PrgError::{self, *};
+use super::errors::Errors::{self, *};
 use aes::{Aes128, Aes192, Aes256};
 use ctr::Ctr128LE;
 use ctr::cipher::{KeyIvInit, StreamCipher};
@@ -10,13 +10,13 @@ const NONCE_FOR_PRG_NEXT: &[u8; 12] = b"\x96\n\n\n\n\n\n\n\n\n\n\n";
 const NONCE_FOR_PRG_REFRESH: &[u8; 12] = b"\x96\r\r\r\r\r\r\r\r\r\r\r";
 
 #[derive(PartialEq, Eq)]
-pub enum Steps {
+enum Steps {
     Refresh,
     Next,
 }
 
 #[derive(PartialEq, Eq, Clone)]
-pub enum PrgOutput {
+enum PrgOutput {
     Refresh(Vec<u8>),
     Next(Vec<u8>, Vec<u8>),
 }
@@ -45,7 +45,7 @@ impl Prg {
         self,
         current_prg_state: &[u8],
         extracted_parameter: &[u8],
-    ) -> Result<Vec<u8>, PrgError> {
+    ) -> Result<Vec<u8>, Errors> {
         let xored_value: Vec<u8> = match self.xor_bytes(current_prg_state, extracted_parameter) {
             Ok(output) => output,
             Err(err) => return Err(err),
@@ -65,7 +65,7 @@ impl Prg {
         Ok(prg_state_after_refreshing)
     }
 
-    pub fn prg_next(self, current_prg_state: &[u8]) -> Result<(Vec<u8>, Vec<u8>), PrgError> {
+    pub fn prg_next(self, current_prg_state: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Errors> {
         let (random_output, new_state) =
             match self.aes_in_counter_mode_as_prg(current_prg_state, Steps::Next) {
                 Ok(PrgOutput::Refresh(_)) => {
@@ -84,10 +84,10 @@ impl Prg {
         self,
         input_key: &[u8],
         step: Steps,
-    ) -> Result<PrgOutput, PrgError> {
+    ) -> Result<PrgOutput, Errors> {
         if ![16, 24, 32].contains(&input_key.len()) {
-            return Err(InvalidInputKeyLength(format!(
-                "{} bytes. Acceptable key sizes are 16, 24 or 32 bytes.",
+            return Err(InvalidLength(format!(
+                "AES input key provided of {} bytes. Acceptable key sizes are 16, 24 or 32 bytes.",
                 &input_key.len()
             )));
         }
@@ -141,10 +141,10 @@ impl Prg {
             }
         }
     }
-    fn xor_bytes(self, param_1: &[u8], param_2: &[u8]) -> Result<Vec<u8>, PrgError> {
+    fn xor_bytes(self, param_1: &[u8], param_2: &[u8]) -> Result<Vec<u8>, Errors> {
         if param_1.len() != param_2.len() {
-            return Err(XORLengthMismatch(format!(
-                "Cannot XOR bytes of unequal length."
+            return Err(InvalidLength(format!(
+                "Cannot XOR two parameters of unequal length."
             )));
         }
 
@@ -215,15 +215,12 @@ mod tests {
 
         for key in invalid_keys {
             let result = prg.prg_next(&key);
-            assert!(matches!(result, Err(PrgError::InvalidInputKeyLength(_))));
+            assert!(matches!(result, Err(InvalidLength(_))));
 
             // Use dummy extracted param of same size
             let extracted = vec![1u8; key.len()];
             let refresh_result = prg.prg_refresh(&key, &extracted);
-            assert!(matches!(
-                refresh_result,
-                Err(PrgError::InvalidInputKeyLength(_))
-            ));
+            assert!(matches!(refresh_result, Err(InvalidLength(_))));
         }
     }
 
@@ -234,10 +231,7 @@ mod tests {
         let param = gen_key(24); // mismatched
 
         let result = prg.prg_refresh(&state, &param);
-        assert!(matches!(
-            result,
-            Err(PrgError::InvalidInputKeyLength(_)) | Err(PrgError::XORLengthMismatch(_))
-        ));
+        assert!(matches!(result, Err(InvalidLength(_))));
     }
 
     #[test]

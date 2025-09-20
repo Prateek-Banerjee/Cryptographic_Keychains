@@ -1,5 +1,5 @@
 use super::{InitialState, NewState, RandomOutput};
-use crate::crypto_primitives::{errors::PrgError, prg_ops::Prg};
+use crate::crypto_primitives::{errors::Errors, prg_ops::Prg};
 
 #[derive(Clone)]
 pub struct PrgKeyChain {
@@ -22,7 +22,7 @@ impl PrgKeyChain {
     pub fn key_chain_instantiate(
         &self,
         seed_for_prg_refreshing: &[u8],
-    ) -> Result<InitialState, PrgError> {
+    ) -> Result<InitialState, Errors> {
         let initial_state: Vec<u8> = match self
             .prg_obj
             .prg_refresh(&self.init_state, seed_for_prg_refreshing)
@@ -38,7 +38,7 @@ impl PrgKeyChain {
         &self,
         arbitrary_input_param: &[u8],
         keychain_state: &[u8],
-    ) -> Result<(NewState, RandomOutput), PrgError> {
+    ) -> Result<(NewState, RandomOutput), Errors> {
         let refreshed_prg_state: Vec<u8> = match self
             .prg_obj
             .prg_refresh(keychain_state, arbitrary_input_param)

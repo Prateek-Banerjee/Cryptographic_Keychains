@@ -1,7 +1,7 @@
 // [1] Krawczyk, Hugo. "Cryptographic extraction and key derivation: The HKDF scheme."
 // Annual Cryptology Conference. Berlin, Heidelberg: Springer Berlin Heidelberg, 2010.
 
-use super::errors::HkdfError::{self, *};
+use super::errors::Errors::{self, *};
 use hkdf::{Hkdf, HkdfExtract};
 use sha2::{Sha256, Sha512, digest::Digest};
 use sha3::{Sha3_256, Sha3_512};
@@ -22,6 +22,44 @@ impl HashFunc {
             Self::Sha3_256 => Sha3_256::output_size(),
             Self::Sha3_512 => Sha3_512::output_size(),
         }
+    }
+
+    fn check_and_get_salt(&self, extractor_salt: Option<Vec<u8>>) -> Result<Vec<u8>, Errors> {
+        let digest_size: usize = self.output_size();
+        let default_salt: Vec<u8>;
+        let salt: Vec<u8> = match extractor_salt {
+            Some(val) => {
+                if val.len() > digest_size {
+                    return Err(InvalidLength(format!(
+                        "Provided salt of {} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
+                        val.len(),
+                        digest_size,
+                        self
+                    )));
+                }
+                val
+            }
+            None => {
+                default_salt = vec![0u8; digest_size];
+                default_salt
+            }
+        };
+
+        Ok(salt)
+    }
+
+    fn is_output_length_okay(&self, total_output_length: usize) -> Result<(), Errors> {
+        let digest_size: usize = self.output_size();
+        if total_output_length > (255 * digest_size) {
+            return Err(InvalidLength(format!(
+                "Total requested output size: {} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
+                total_output_length,
+                (255 * digest_size),
+                self
+            )));
+        }
+
+        Ok(())
     }
 }
 
@@ -69,9 +107,8 @@ impl HkdfWrap {
         self,
         extractor_salt: Option<Vec<u8>>,
         source_key_material: &[u8],
-    ) -> Result<Vec<u8>, HkdfError> {
-        let digest_size: usize = self.hash_func.output_size();
-        let salt: Vec<u8> = self.check_and_get_salt(extractor_salt, digest_size)?;
+    ) -> Result<Vec<u8>, Errors> {
+        let salt: Vec<u8> = self.hash_func.check_and_get_salt(extractor_salt)?;
 
         match self.hash_func {
             HashFunc::Sha256 => Ok(hkdf_extract!(Sha256, salt, source_key_material)),
@@ -85,13 +122,12 @@ impl HkdfWrap {
         self,
         pseudo_random_key: &[u8],
         info_param: Option<Vec<u8>>,
-        desired_output_length: usize,
-    ) -> Result<Vec<u8>, HkdfError> {
-        let digest_size: usize = self.hash_func.output_size();
-        let mut total_output: Vec<u8> = vec![0u8; desired_output_length];
+        total_output_length: usize,
+    ) -> Result<Vec<u8>, Errors> {
+        let mut total_output: Vec<u8> = vec![0u8; total_output_length];
         let info: Vec<u8> = info_param.unwrap_or(b"".to_vec());
 
-        match self.is_output_length_okay(desired_output_length, digest_size) {
+        match self.hash_func.is_output_length_okay(total_output_length) {
             Ok(_) => match self.hash_func {
                 HashFunc::Sha256 => Ok(hkdf_expand!(Sha256, pseudo_random_key, info, total_output)),
                 HashFunc::Sha512 => Ok(hkdf_expand!(Sha512, pseudo_random_key, info, total_output)),
@@ -110,50 +146,6 @@ impl HkdfWrap {
             },
             Err(err) => return Err(err),
         }
-    }
-
-    fn check_and_get_salt(
-        self,
-        extractor_salt: Option<Vec<u8>>,
-        digest_size: usize,
-    ) -> Result<Vec<u8>, HkdfError> {
-        let default_salt: Vec<u8>;
-        let salt: Vec<u8> = match extractor_salt {
-            Some(val) => {
-                if val.len() > digest_size {
-                    return Err(InvalidSaltLength(format!(
-                        "{} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
-                        val.len(),
-                        digest_size,
-                        self.hash_func
-                    )));
-                }
-                val
-            }
-            None => {
-                default_salt = vec![0u8; digest_size];
-                default_salt
-            }
-        };
-
-        Ok(salt)
-    }
-
-    fn is_output_length_okay(
-        self,
-        desired_output_length: usize,
-        digest_size: usize,
-    ) -> Result<(), HkdfError> {
-        if desired_output_length > (255 * digest_size) {
-            return Err(ExcessiveTotalOutputLength(format!(
-                "{} bytes. Acceptable length is <= {} bytes for the hash function {:?}",
-                desired_output_length,
-                (255 * digest_size),
-                self.hash_func
-            )));
-        }
-
-        Ok(())
     }
 }
 
@@ -197,7 +189,7 @@ mod tests {
         let long_salt = Some(sample_salt(64)); // longer than SHA256 output
 
         let result = hkdf.hkdf_extract(long_salt, &ikm);
-        assert!(matches!(result, Err(InvalidSaltLength(_))));
+        assert!(matches!(result, Err(InvalidLength(_))));
     }
 
     #[test]
@@ -220,7 +212,7 @@ mod tests {
         let prk = hkdf.hkdf_extract(None, &ikm).unwrap();
         let result = hkdf.hkdf_expand(&prk, None, 255 * 32 + 1); // Just over the allowed limit
 
-        assert!(matches!(result, Err(ExcessiveTotalOutputLength(_))));
+        assert!(matches!(result, Err(InvalidLength(_))));
     }
 
     #[test]

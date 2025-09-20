@@ -14,10 +14,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "ascon"
-version = "0.4.0"
+name = "ascon-core"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e716048a18530cce4684daf98a7563a499d710e1ed8ef35567fcb43a7c5f1"
+checksum = "c90c8493a0b3bf8678a82f096821a2c527dd6344bbcef6265bfcc09745f44e24"
+
+[[package]]
+name = "ascon-hash"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9a9c93d95a4f3344947e14ad2fd9c1d2ea789c8f8ecef6a906b9ac295301763"
+dependencies = [
+ "ascon-core",
+ "digest",
+]
 
 [[package]]
 name = "bitflags"
@@ -187,17 +197,14 @@ name = "keychains_rs"
 version = "0.1.0"
 dependencies = [
  "aes",
- "ascon",
+ "ascon-hash",
  "ctr",
- "digest",
  "hkdf",
  "rand",
- "rand_core 0.9.3",
  "rusqlite",
  "sha2",
  "sha3",
  "thiserror",
- "zeroize",
 ]
 
 [[package]]
@@ -257,7 +264,7 @@ checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
  "rand_chacha",
- "rand_core 0.6.4",
+ "rand_core",
 ]
 
 [[package]]
@@ -267,7 +274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
- "rand_core 0.6.4",
+ "rand_core",
 ]
 
 [[package]]
@@ -278,12 +285,6 @@ checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 
 [[package]]
 name = "rusqlite"
@@ -412,9 +413,3 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "zeroize"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ced3678a2879b30306d323f4542626697a464a97c0a07c9aebf7ebca65cd4dde"
