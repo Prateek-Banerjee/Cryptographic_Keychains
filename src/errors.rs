@@ -10,4 +10,10 @@ pub enum Errors {
 
     #[error("{0}")]
     ParamNotProvided(String),
+
+    #[error("{0}")]
+    UninitializedStorage(String),
+
+    #[error("{0}")]
+    NoStoredState(String),
 }

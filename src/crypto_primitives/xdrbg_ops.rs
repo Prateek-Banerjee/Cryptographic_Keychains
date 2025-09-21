@@ -1,7 +1,7 @@
 // [1] Kelsey, John, Stefan Lucks, and Stephan Müller. "XDRBG: A Proposed Deterministic Random Bit Generator Based on Any XOF."
 // IACR Transactions on Symmetric Cryptology 2024.1 (2024): 5-34. https://tosc.iacr.org/index.php/ToSC/article/view/11399
 
-use super::errors::Errors::{self, *};
+use crate::errors::Errors::{self, *};
 use ascon_hash::AsconXof128;
 use sha3::{
     Shake128, Shake256,
@@ -16,7 +16,7 @@ pub enum XdrbgOps {
     Reseed,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Xof {
     Shake128,
     Shake256,
@@ -48,7 +48,7 @@ impl Xof {
     pub fn is_output_length_okay(&self, output_key_length: usize) -> Result<(), Errors> {
         if (output_key_length + self.state_size()) > self.max_total_output_size() {
             return Err(InvalidLength(format!(
-                "Requested output and XOF state size: {} + {} = {} bytes. Acceptable length is <= {} bytes for the XOF {:?}.",
+                "Requested output key size + XOF state size: {} + {} = {} bytes. Acceptable length is <= {} bytes for the XOF {:?}.",
                 output_key_length,
                 self.state_size(),
                 output_key_length + self.state_size(),
@@ -254,6 +254,10 @@ impl Xdrbg {
                 xof_output_buffer
             }
         }
+    }
+
+    pub fn get_chosen_xof(&self) -> Xof {
+        self.xof
     }
 }
 

@@ -3,8 +3,9 @@ use rand::{RngCore, rngs::OsRng};
 
 fn main() {
     for xof in [Shake128, Shake256, Ascon].iter() {
-        let output_length: usize = 548;
-        let xdrbg_kc_obj: XdrbgKeyChain = XdrbgKeyChain::new(*xof, Some(output_length), None);
+        let output_length: usize = 64;
+        let xdrbg_kc_obj: XdrbgKeyChain =
+            XdrbgKeyChain::new(*xof, Some(output_length), None, None).unwrap();
 
         let mut seed_instantiate: [u8; 64] = [0u8; 64];
         OsRng::fill_bytes(&mut OsRng, &mut seed_instantiate);

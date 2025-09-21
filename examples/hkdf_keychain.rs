@@ -4,7 +4,8 @@ use rand::{RngCore, rngs::OsRng};
 fn main() {
     for variant in [Sha256, Sha3_256, Sha512, Sha3_512].iter() {
         let output_length: usize = 64;
-        let hkdf_kc_obj: HkdfKeyChain = HkdfKeyChain::new(*variant, Some(output_length), None);
+        let hkdf_kc_obj: HkdfKeyChain =
+            HkdfKeyChain::new(*variant, Some(output_length), None, None).unwrap();
 
         let mut initial_skm: [u8; 32] = [0u8; 32];
         OsRng::fill_bytes(&mut OsRng, &mut initial_skm);

@@ -1,7 +1,7 @@
 // [1] Barak, Boaz, and Shai Halevi. "A model and architecture for pseudo-random generation with applications to/dev/random."
 // Proceedings of the 12th ACM conference on Computer and communications security. 2005. https://eprint.iacr.org/2005/029.pdf
 
-use super::errors::Errors::{self, *};
+use crate::errors::Errors::{self, *};
 use aes::{Aes128, Aes192, Aes256};
 use ctr::Ctr128LE;
 use ctr::cipher::{KeyIvInit, StreamCipher};
@@ -141,6 +141,7 @@ impl Prg {
             }
         }
     }
+
     fn xor_bytes(self, param_1: &[u8], param_2: &[u8]) -> Result<Vec<u8>, Errors> {
         if param_1.len() != param_2.len() {
             return Err(InvalidLength(format!(
@@ -155,6 +156,10 @@ impl Prg {
             .collect();
 
         Ok(output)
+    }
+
+    pub fn get_chosen_security_param_lambda(&self) -> usize {
+        self.security_param_lambda
     }
 }
 

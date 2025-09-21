@@ -1,12 +1,12 @@
 // [1] Krawczyk, Hugo. "Cryptographic extraction and key derivation: The HKDF scheme."
 // Annual Cryptology Conference. Berlin, Heidelberg: Springer Berlin Heidelberg, 2010.
 
-use super::errors::Errors::{self, *};
+use crate::errors::Errors::{self, *};
 use hkdf::{Hkdf, HkdfExtract};
 use sha2::{Sha256, Sha512, digest::Digest};
 use sha3::{Sha3_256, Sha3_512};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum HashFunc {
     Sha256,
     Sha512,
@@ -75,10 +75,10 @@ macro_rules! hkdf_extract {
 macro_rules! hkdf_expand {
     ($hash_algo:ty, $pseudo_random_key:expr, $info_param:expr, $total_output:expr) => {{
         let hkdf_inst =
-            Hkdf::<$hash_algo>::from_prk($pseudo_random_key).expect("Invalid (length of) PRK.");
+            Hkdf::<$hash_algo>::from_prk($pseudo_random_key).expect("Invalid (length of) Prk.");
         hkdf_inst
             .expand(&$info_param, &mut $total_output)
-            .expect("Expansion Failed");
+            .expect("Hkdf expansion failed");
         $total_output
     }};
 }
@@ -146,6 +146,10 @@ impl HkdfWrap {
             },
             Err(err) => return Err(err),
         }
+    }
+
+    pub fn get_chosen_hash_func(&self) -> HashFunc {
+        self.hash_func
     }
 }
 

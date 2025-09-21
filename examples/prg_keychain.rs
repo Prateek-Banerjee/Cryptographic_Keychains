@@ -5,7 +5,7 @@ fn main() {
     const SEC_PAR_LAMBDA: [usize; 3] = [16, 24, 32];
 
     for sec_param in SEC_PAR_LAMBDA.iter() {
-        let prg_kc_obj: PrgKeyChain = PrgKeyChain::new(*sec_param, None);
+        let prg_kc_obj: PrgKeyChain = PrgKeyChain::new(*sec_param, None, None).unwrap();
 
         let mut initial_seed: Vec<u8> = vec![0u8; *sec_param];
         OsRng::fill_bytes(&mut OsRng, &mut initial_seed);
