@@ -10,20 +10,20 @@ pub struct PrgKeyChain {
     prg_obj: Prg,
     store_persistently: bool,
     init_state: InitialState,
-    storage: Option<Arc<dyn Storage<()>>>,
+    storage: Option<Arc<dyn Storage>>,
 }
 
 impl PrgKeyChain {
     pub fn new(
         security_param_lambda: usize,
         store_persistently: Option<bool>,
-        storage: Option<Arc<dyn Storage<()>>>,
+        storage: Option<Arc<dyn Storage>>,
     ) -> Result<Self, Errors> {
         let prg_obj: Prg = Prg::new(security_param_lambda);
 
         let store_persistently: bool = store_persistently.unwrap_or(false);
 
-        let storage_choice: Option<Arc<dyn Storage<()>>> = if store_persistently {
+        let storage_choice: Option<Arc<dyn Storage>> = if store_persistently {
             if let Some(storage) = storage {
                 Some(storage)
             } else {

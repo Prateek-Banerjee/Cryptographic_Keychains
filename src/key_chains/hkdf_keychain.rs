@@ -11,7 +11,7 @@ pub struct HkdfKeyChain {
     output_key_length: usize,
     state_length: usize,
     store_persistently: bool,
-    storage: Option<Arc<dyn Storage<()>>>,
+    storage: Option<Arc<dyn Storage>>,
 }
 
 impl HkdfKeyChain {
@@ -19,13 +19,13 @@ impl HkdfKeyChain {
         hash_func: HashFunc,
         output_key_length: Option<usize>,
         store_persistently: Option<bool>,
-        storage: Option<Arc<dyn Storage<()>>>,
+        storage: Option<Arc<dyn Storage>>,
     ) -> Result<Self, Errors> {
         let hkdf_obj: HkdfWrap = HkdfWrap::new(hash_func);
 
         let store_persistently: bool = store_persistently.unwrap_or(false);
 
-        let storage_choice: Option<Arc<dyn Storage<()>>> = if store_persistently {
+        let storage_choice: Option<Arc<dyn Storage>> = if store_persistently {
             if let Some(storage) = storage {
                 Some(storage)
             } else {

@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{collections::HashMap, sync::Mutex};
 
-pub trait Storage<T> {
+pub trait Storage {
     fn store_state_for_hkdf_keychain(&self, state_of_key_chain: &[u8], hash_func: HashFunc);
     fn store_state_for_prg_keychain(&self, state_of_key_chain: &[u8], security_param_lambda: usize);
     fn store_state_for_xdrbg_keychain(&self, state_of_key_chain: &[u8], xof: Xof);
@@ -49,7 +49,7 @@ impl DefaultStorage {
     }
 }
 
-impl Storage<()> for DefaultStorage {
+impl Storage for DefaultStorage {
     fn store_state_for_hkdf_keychain(&self, state_of_key_chain: &[u8], hash_func: HashFunc) {
         if let Some(ref map_mutex) = self.hkdf_map {
             let mut map = map_mutex.lock().unwrap();
