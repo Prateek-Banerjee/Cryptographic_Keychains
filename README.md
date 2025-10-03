@@ -1,6 +1,6 @@
 # Description
 
-The implementation of cryptographic key chains using three primitives, i.e., HKDF, PRG, and XDRBG, in Rust.
+The implementation of cryptographic key chains using three primitives, i.e., HKDF, PRG, and XDRBG, in **Rust v1.87.0**.
 
 ## Usage
 
